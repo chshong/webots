@@ -275,8 +275,9 @@ def main():
     global simulation_server_loads
 
     # logging system
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    # disabled logging.getLogger('tornado.access')
+    app_logger = logging.getLogger('tornado.application')
+    general_logger = logging.getLogger('tornado.general')
     if 'logDir' not in config:
         config['logDir'] = 'log'
     else:
@@ -290,7 +291,8 @@ def main():
         formatter = logging.Formatter('%(asctime)-15s [%(levelname)-7s]  %(message)s')
         file_handler.setFormatter(formatter)
         file_handler.setLevel(logging.INFO)
-        root_logger.addHandler(file_handler)
+        app_logger.addHandler(file_handler)
+        general_logger.addHandler(file_handler)
     except (OSError, IOError) as e:
         sys.exit("Log file '" + logFile + "' cannot be created: " + str(e))
 

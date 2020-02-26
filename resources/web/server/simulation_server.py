@@ -139,7 +139,7 @@ class Client:
         self.kill_webots()
         self.cleanup_webots_instance()
 
-    def prepare_webots_instance(self):
+    def prepare_webots_instance(self, client):
         """Setup a local Webots project to be run by the client."""
         appPath = config['projectsDir'] + '/' + self.app + '/'
         self.project_instance_path = config['instancesPath'] + str(id(self))
@@ -157,14 +157,14 @@ class Client:
                     error = response.content.decode('utf-8')
                     if error.startswith('Error: no such directory: '):
                         return True  # Use the default directory instead
-                    logging.error("Failed to download project: " + error + "(host = " + self.host + ")")
+                    logging.error('[%d] Failed to download project: %s (host = %s)' % (id(client), error, self.host))
                     return False
                 fp = BytesIO(response.content)
                 try:
                     zfp = zipfile.ZipFile(fp, 'r')
                     zfp.extractall(self.project_instance_path)
                 except zipfile.BadZipfile:
-                    logging.error("Bad ZIP file:\n" + response.content.decode('utf-8'))
+                    logging.error('[%d] Bad ZIP file:\n %s' % (id(client), response.content.decode('utf-8')))
                     return False
                 chmod_python_and_executable_files(self.project_instance_path)
         return True
@@ -197,7 +197,7 @@ class Client:
                                                          stderr=subprocess.STDOUT,
                                                          bufsize=1, universal_newlines=True)
             except Exception:
-                logging.error('Unable to start Webots: ' + command)
+                logging.error('[%d] Unable to start Webots: "%s"' % (id(client), command))
                 return
             logging.info('[%d] Webots [%d] started: "%s"' % (id(client), client.webots_process.pid, command))
             while 1:
@@ -225,7 +225,7 @@ class Client:
                     client.client_websocket.write_message('.')
             client.on_exit()
 
-        if self.prepare_webots_instance():
+        if self.prepare_webots_instance(client):
             self.on_webots_quit = on_webots_quit
             threading.Thread(target=runWebotsInThread, args=(self,)).start()
         else:
@@ -285,9 +285,9 @@ class ClientWebSocketHandler(tornado.websocket.WebSocketHandler):
             if not found:
                 # try to connect to make sure that port is available
                 testSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                result = testSocket.connect_ex(('localhost', port)) == 0
+                portIsUsed = testSocket.connect_ex(('localhost', port)) == 0
                 testSocket.close()
-                if result:
+                if not portIsUsed:
                     return port
             port += 1
             if port > config['port'] + config['maxConnections']:
@@ -297,7 +297,6 @@ class ClientWebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         """Open a new connection for an incoming client."""
         self.set_nodelay(True)
-        logging.info(self.request.host)
         client = Client(client_websocket=self)
         ClientWebSocketHandler.clients.add(client)
         logging.info('[%d] New client' % (id(client),))
@@ -344,7 +343,7 @@ class ClientWebSocketHandler(tornado.websocket.WebSocketHandler):
                     try:
                         keyFile = open(keyFilename, "r")
                     except IOError:
-                        logging.error("Unknown host: " + host + " from " + self.request.remote_ip)
+                        logging.error('[%d] Unknown host: %s from %s' % (id(client), host, self.request.remote_ip))
                         client.client_websocket.close()
                         return
                     client.key = keyFile.readline().rstrip(os.linesep)
@@ -631,8 +630,9 @@ def main():
 
     # logging system
     log_formatter = logging.Formatter('%(asctime)-15s [%(levelname)-7s]  %(message)s')
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    # disabled logging.getLogger('tornado.access')
+    app_logger = logging.getLogger('tornado.application')
+    general_logger = logging.getLogger('tornado.general')
 
     if 'logDir' not in config:
         config['logDir'] = 'log'
@@ -646,7 +646,8 @@ def main():
         file_handler = logging.FileHandler(logFile)
         file_handler.setFormatter(log_formatter)
         file_handler.setLevel(logging.INFO)
-        root_logger.addHandler(file_handler)
+        app_logger.addHandler(file_handler)
+        general_logger.addHandler(file_handler)
     except (OSError, IOError) as e:
         sys.exit("Log file '" + logFile + "' cannot be created: " + str(e))
 
