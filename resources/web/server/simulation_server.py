@@ -139,7 +139,7 @@ class Client:
         self.kill_webots()
         self.cleanup_webots_instance()
 
-    def prepare_webots_instance(self, client):
+    def prepare_webots_instance(self):
         """Setup a local Webots project to be run by the client."""
         appPath = config['projectsDir'] + '/' + self.app + '/'
         self.project_instance_path = config['instancesPath'] + str(id(self))
@@ -157,14 +157,14 @@ class Client:
                     error = response.content.decode('utf-8')
                     if error.startswith('Error: no such directory: '):
                         return True  # Use the default directory instead
-                    logging.error('[%d] Failed to download project: %s (host = %s)' % (id(client), error, self.host))
+                    logging.error("Failed to download project: " + error + "(host = " + self.host + ")")
                     return False
                 fp = BytesIO(response.content)
                 try:
                     zfp = zipfile.ZipFile(fp, 'r')
                     zfp.extractall(self.project_instance_path)
                 except zipfile.BadZipfile:
-                    logging.error('[%d] Bad ZIP file:\n %s' % (id(client), response.content.decode('utf-8')))
+                    logging.error("Bad ZIP file:\n" + response.content.decode('utf-8'))
                     return False
                 chmod_python_and_executable_files(self.project_instance_path)
         return True
@@ -225,7 +225,7 @@ class Client:
                     client.client_websocket.write_message('.')
             client.on_exit()
 
-        if self.prepare_webots_instance(client):
+        if self.prepare_webots_instance():
             self.on_webots_quit = on_webots_quit
             threading.Thread(target=runWebotsInThread, args=(self,)).start()
         else:
@@ -291,7 +291,7 @@ class ClientWebSocketHandler(tornado.websocket.WebSocketHandler):
                     return port
             port += 1
             if port > config['port'] + config['maxConnections']:
-                logging.error("Too many open connections (>" + config['maxConnections'] + ")")
+                logging.error("Too many open connections (>" + str(config['maxConnections']) + ")")
                 return port
 
     def open(self):
@@ -630,9 +630,9 @@ def main():
 
     # logging system
     log_formatter = logging.Formatter('%(asctime)-15s [%(levelname)-7s]  %(message)s')
-    # disabled logging.getLogger('tornado.access')
-    app_logger = logging.getLogger('tornado.application')
-    general_logger = logging.getLogger('tornado.general')
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    logging.getLogger('tornado.access').disabled = True
 
     if 'logDir' not in config:
         config['logDir'] = 'log'
@@ -646,8 +646,7 @@ def main():
         file_handler = logging.FileHandler(logFile)
         file_handler.setFormatter(log_formatter)
         file_handler.setLevel(logging.INFO)
-        app_logger.addHandler(file_handler)
-        general_logger.addHandler(file_handler)
+        root_logger.addHandler(file_handler)
     except (OSError, IOError) as e:
         sys.exit("Log file '" + logFile + "' cannot be created: " + str(e))
 
