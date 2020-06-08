@@ -291,7 +291,7 @@ void WbBackground::applySkyBoxToWren() {
       } else
         atLeastOneUrlDefined = true;
 
-      textureUrls[i] = WbUrl::computePath(this, "textureBaseName", mUrlFields[i]->item(0), false);
+      textureUrls[i] = WbUrl::computePath(this, "textureBaseName", mUrlFields[i], false);
     }
 
     if (!allUrlDefined)
