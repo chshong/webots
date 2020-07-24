@@ -361,12 +361,12 @@ namespace {
   void odeMessageFunc(int errnum, const char *msg, va_list ap) {
     QString message = QString::vasprintf(msg, ap);
     if (message.startsWith("LCP")) {
-      message = QString("The current physics step could not be computed correctly. "
-                        "Your world may be too complex. If this problem persists, try simplifying "
-                        "your bounding object(s), reducing the number of joints, or reducing "
-                        "WorldInfo.basicTimeStep.");
+      // message = QString("The current physics step could not be computed correctly. "
+      //                   "Your world may be too complex. If this problem persists, try simplifying "
+      //                   "your bounding object(s), reducing the number of joints, or reducing "
+      //                   "WorldInfo.basicTimeStep.");
 
-      emit WbLog::instance()->logEmitted(WbLog::WARNING, QString("WARNING: ") + message, false, WbLog::filterName(WbLog::ODE));
+      // emit WbLog::instance()->logEmitted(WbLog::WARNING, QString("WARNING: ") + message, false, WbLog::filterName(WbLog::ODE));
     } else
       emit WbLog::instance()->logEmitted(WbLog::WARNING, QString("ODE Message %1: ").arg(errnum) + message, false,
                                          WbLog::filterName(WbLog::ODE));
